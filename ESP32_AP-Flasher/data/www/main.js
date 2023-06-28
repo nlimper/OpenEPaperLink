@@ -119,6 +119,12 @@ function connect() {
 				otamodule.print(msg.console, color);
 			}
 		}
+		if (msg.flasher) {
+			if (flashermodule && typeof (flashermodule.print) === "function") {
+				let color = "#c0c0c0";
+				flashermodule.print(msg.flasher, color);
+			}
+		}
 	});
 
 	socket.addEventListener("close", (event) => {
@@ -483,6 +489,17 @@ $('#updatebutton').onclick = function () {
 async function loadOTA() {
 	otamodule = await import('./ota.js?v=' + Date.now());
 	otamodule.initUpdate();
+}
+
+$('#flasherbutton').onclick = function () {
+	$('#apconfigbox').style.display = 'none';
+	$('#flasherbox').style.display = 'block';
+	loadFlasher();
+}
+
+async function loadFlasher() {
+	flashermodule = await import('./flasher.js?v=' + Date.now());
+	flashermodule.initFlasher();
 }
 
 $('#paintbutton').onclick = function () {

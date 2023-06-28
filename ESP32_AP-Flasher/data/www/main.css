@@ -64,7 +64,7 @@ label {
 	gap: 20px;
 }
 
-#rebootbutton, #updatebutton, #downloadDBbutton, #apconfigbutton, .filebutton {
+#rebootbutton, #updatebutton, #downloadDBbutton, #apconfigbutton, .filebutton, #flasherbutton {
 	padding: 2px 5px;
 	background-color: #cccccc;
 	text-decoration: none;
@@ -110,7 +110,7 @@ select {
 	border: solid 1px #cccccc;
 }
 
-#configbox, #apconfigbox, #apupdatebox {
+#configbox, #apconfigbox, #apupdatebox, #flasherbox {
 	display: none;
 	position: fixed;
 	top: 65px;
@@ -124,14 +124,14 @@ select {
 	max-height: calc(100vh - 75px);
 }
 
-#configbox p, #apconfigbox p, #apupdatebox p {
+#configbox p, #apconfigbox p, #apupdatebox p, #flasherbox p {
 	padding: 5px;
 	display: flex;
 	gap: 5px;
 	align-items: flex-start;
 }
 
-#configbox h3, #apconfigbox h3, #apupdatebox h3 {
+#configbox h3, #apconfigbox h3, #apupdatebox h3, #flasherbox h3 {
 	font-size: 1.5em;
 	font-weight: bold;
 }
@@ -214,6 +214,11 @@ select {
 	width: 700px;
 	padding-bottom: 20px;
 	border: 1px solid #d0b0a8;
+}
+
+#flasherbox {
+	width: 640px;
+	background-color: #E0B0B0
 }
 
 #cfgdelete {

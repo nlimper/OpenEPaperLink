@@ -484,3 +484,65 @@ void doImageUpload(AsyncWebServerRequest *request, String filename, size_t index
         }
     }
 }
+
+void Webterminal::print(const String &text) {
+    Serial.print(text);
+    StaticJsonDocument<250> doc;
+    doc["flasher"] = text;
+    if (wsMutex) xSemaphoreTake(wsMutex, portMAX_DELAY);
+    ws.textAll(doc.as<String>());
+    if (wsMutex) xSemaphoreGive(wsMutex);
+}
+
+void Webterminal::print(const char text[]) {
+    print(String(text));
+}
+
+void Webterminal::print(char character) {
+    print(String(character));
+}
+
+void Webterminal::print(unsigned char number, int base) {
+    print(String(number, base));
+}
+
+void Webterminal::print(int number, int base) {
+    print(String(number, base));
+}
+
+void Webterminal::print(unsigned int number, int base) {
+    print(String(number, base));
+}
+
+void Webterminal::print(long number, int base) {
+    print(String(number, base));
+}
+
+void Webterminal::print(unsigned long number, int base) {
+    print(String(number, base));
+}
+
+void Webterminal::print(float number, int decimalPlaces) {
+    print(String(number, decimalPlaces));
+}
+
+void Webterminal::print(double number, int decimalPlaces) {
+    print(String(number, decimalPlaces));
+}
+
+void Webterminal::printf(const char *format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    print(buffer);
+}
+
+void Webterminal::println(const String &text) {
+    print(text + "\n");
+}
+
+void Webterminal::println(const char text[]) {
+    println(String(text));
+}

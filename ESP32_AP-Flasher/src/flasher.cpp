@@ -10,9 +10,14 @@
 #include "leds.h"
 #include "settings.h"
 #include "time.h"
+#include "web.h"
 #include "zbs_interface.h"
 
 #define FINGERPRINT_FLASH_SIZE 10240
+
+Webterminal Terminal;
+#define TERMINAL Terminal
+// #define TERMINAL Serial
 
 #ifdef OPENEPAPERLINK_PCB
 bool extTagConnected() {
@@ -27,28 +32,28 @@ bool extTagConnected() {
 
 void dump(uint8_t *a, uint16_t l) {
     if (a == nullptr) {
-        Serial.print("Tried to dump the contents of a nullptr, this is probably not what you want.\n");
+        TERMINAL.print("Tried to dump the contents of a nullptr, this is probably not what you want.\n");
     }
-    Serial.printf("        ");
+    TERMINAL.printf("        ");
 #define ROWS 16
     for (uint8_t c = 0; c < ROWS; c++) {
-        Serial.printf(" %02X", c);
+        TERMINAL.printf(" %02X", c);
     }
-    Serial.printf("\n--------");
+    TERMINAL.printf("\n--------");
     for (uint8_t c = 0; c < ROWS; c++) {
-        Serial.printf("---");
+        TERMINAL.printf("---");
     }
     for (uint16_t c = 0; c < l; c++) {
         if ((c % ROWS) == 0) {
-            Serial.printf("\n0x%04X | ", c);
+            TERMINAL.printf("\n0x%04X | ", c);
         }
-        Serial.printf("%02X ", a[c]);
+        TERMINAL.printf("%02X ", a[c]);
     }
-    Serial.printf("\n--------");
+    TERMINAL.printf("\n--------");
     for (uint8_t c = 0; c < ROWS; c++) {
-        Serial.printf("---");
+        TERMINAL.printf("---");
     }
-    Serial.printf("\n");
+    TERMINAL.printf("\n");
 }
 
 int8_t powerPinsAP[] = FLASHER_AP_POWER;
@@ -136,17 +141,17 @@ bool flasher::connectTag(uint8_t port) {
             break;
 #endif
         default:
-            Serial.printf("Tried to connect to port %d, but this port isn't available. Some dev borked it up, probably Jelmer.\n", port);
+            TERMINAL.printf("Tried to connect to port %d, but this port isn't available. Some dev borked it up, probably Jelmer.\n", port);
             return false;
     }
-    if (!result) Serial.printf("I tried connecting to port %d, but I couldn't establish a link to the tag. That's all I know.\n", port);
+    if (!result) TERMINAL.printf("I tried connecting to port %d, but I couldn't establish a link to the tag. That's all I know.\n", port);
     return result;
 }
 
 void flasher::getFirmwareMD5() {
     uint8_t *buffer = (uint8_t *)malloc(FINGERPRINT_FLASH_SIZE);
     if (buffer == nullptr) {
-        Serial.print("couldn't malloc bytes for firmware MD5\n");
+        TERMINAL.print("couldn't malloc bytes for firmware MD5\n");
         return;
     }
 
@@ -166,7 +171,7 @@ void flasher::getFirmwareMD5() {
     for (uint8_t c = 0; c < 16; c++) {
         sprintf(md5char + (2 * c), "%02X", md5[c]);
     }
-    Serial.printf("MD5=%s\n", md5char);
+    TERMINAL.printf("MD5=%s\n", md5char);
     free(buffer);
 }
 
@@ -175,13 +180,13 @@ bool flasher::getInfoBlockMac() {
     for (uint16_t c = 7; c < 8; c--) {
         mac[7 - c] = zbs->read_flash(c + 0x10);
     }
-    Serial.printf("Infopage mac=");
+    TERMINAL.printf("Infopage mac=");
     uint16_t macsum = 0;
     for (uint8_t c = 0; c < 8; c++) {
         macsum += mac[c];
-        Serial.printf("%02X", mac[c]);
+        TERMINAL.printf("%02X", mac[c]);
     }
-    Serial.printf("\n");
+    TERMINAL.printf("\n");
     if (macsum == 0) return false;
     if (macsum > 0x5F9) return false;
     return true;
@@ -197,7 +202,7 @@ bool flasher::getInfoBlockMD5() {
         macsum += md5[c];
         sprintf(md5char + (2 * c), "%02X", md5[c]);
     }
-    Serial.printf("Infoblock MD5=%s\n", md5char);
+    TERMINAL.printf("Infoblock MD5=%s\n", md5char);
     if (macsum == 0) return false;     // invalid mac
     if (macsum > 0xF00) return false;  // *probably* an invalid mac
     return true;
@@ -219,9 +224,9 @@ bool flasher::findTagByMD5() {
             const char *jsonmd5 = elem["MD5"];
             if (jsonmd5 != nullptr) {
                 if (strncmp(md5char, jsonmd5, 32) == 0) {
-                    Serial.print("MD5 Matches > ");
+                    TERMINAL.print("MD5 Matches > ");
                     const char *name = elem["name"];
-                    Serial.println(name);
+                    TERMINAL.println(name);
                     mac_suffix = strtoul(elem["mac_suffix"], 0, 16);
                     mac_format = elem["mac_format"];
                     mac_offset = elem["mac_offset"];
@@ -231,9 +236,9 @@ bool flasher::findTagByMD5() {
                 }
             }
         }
-        Serial.print("Failed to find this tag's current firmware MD5 in the json database. If this tag is already OpenEpaperLink, this is to be expected.\n");
+        TERMINAL.print("Failed to find this tag's current firmware MD5 in the json database. If this tag is already OpenEpaperLink, this is to be expected.\n");
     } else {
-        Serial.print("Failed to read json file\n");
+        TERMINAL.print("Failed to read json file\n");
     }
     readfile.close();
     return false;
@@ -249,9 +254,9 @@ bool flasher::findTagByType(uint8_t type) {
             if (elem["type"] != nullptr) {
                 uint8_t jtype = elem["type"];
                 if (jtype == type) {
-                    Serial.print("Type Matches > ");
+                    TERMINAL.print("Type Matches > ");
                     const char *name = elem["name"];
-                    Serial.println(name);
+                    TERMINAL.println(name);
                     const char *jsonmd5 = elem["MD5"];
 
                     for (uint8_t c = 0; c < 16; c++) {
@@ -273,9 +278,9 @@ bool flasher::findTagByType(uint8_t type) {
                 }
             }
         }
-        Serial.print("Failed to find this tag's type in the json database.\n");
+        TERMINAL.print("Failed to find this tag's type in the json database.\n");
     } else {
-        Serial.print("Failed to read json file\n");
+        TERMINAL.print("Failed to read json file\n");
     }
     readfile.close();
     return false;
@@ -355,7 +360,7 @@ bool flasher::writeFlash(uint8_t *flashbuffer, uint16_t size) {
     if (!zbs->select_flash(0)) return false;
     zbs->erase_flash();
     if (!zbs->select_flash(0)) return false;
-    Serial.printf("Starting flash, size=%d\n", size);
+    TERMINAL.printf("Starting flash, size=%d\n", size);
     for (uint16_t c = 0; c < size; c++) {
         if (flashbuffer[c] == 0xFF) goto flashWriteSuccess;
         for (uint8_t i = 0; i < MAX_WRITE_ATTEMPTS; i++) {
@@ -372,7 +377,7 @@ bool flasher::writeFlash(uint8_t *flashbuffer, uint16_t size) {
 #else
             quickBlink(2);
 #endif
-            Serial.printf("\rNow flashing, %d/%d  ", c, size);
+            TERMINAL.printf("\rNow flashing, %d/%d  ", c, size);
             vTaskDelay(1 / portTICK_PERIOD_MS);
         }
     }
@@ -447,7 +452,7 @@ bool flasher::writeFlashFromPackOffset(fs::File *file, uint16_t length) {
     if (!zbs->select_flash(0)) return false;
     zbs->erase_flash();
     if (!zbs->select_flash(0)) return false;
-    Serial.printf("Starting flash, size=%d\n", length);
+    TERMINAL.printf("Starting flash, size=%d\n", length);
 
     uint8_t *buf = (uint8_t *)malloc(256);
     uint16_t offset = 0;
@@ -464,16 +469,16 @@ bool flasher::writeFlashFromPackOffset(fs::File *file, uint16_t length) {
 #else
         quickBlink(2);
 #endif
-        Serial.printf("\rFlashing, %d bytes left     ", length);
+        TERMINAL.printf("\rFlashing, %d bytes left     ", length);
         bool res = writeBlock256(offset, buf);
         offset += 256;
         if (!res) {
-            Serial.printf("Failed writing block to tag, probably a hardware failure\n");
+            TERMINAL.printf("Failed writing block to tag, probably a hardware failure\n");
             return false;
         }
         vTaskDelay(1 / portTICK_PERIOD_MS);
     }
-    Serial.printf("\nFlashing done\n");
+    TERMINAL.printf("\nFlashing done\n");
     return true;
 }
 
@@ -488,8 +493,8 @@ bool flasher::writeFlashFromPack(String filename, uint8_t type) {
                 uint8_t jtype = elem["type"];
                 if (jtype == type) {
                     const char *name = elem["name"];
-                    Serial.print("Flashing from FW pack: ");
-                    Serial.println(name);
+                    TERMINAL.print("Flashing from FW pack: ");
+                    TERMINAL.println(name);
 
                     uint32_t offset = elem["offset"];
                     uint16_t length = elem["length"];
@@ -500,9 +505,9 @@ bool flasher::writeFlashFromPack(String filename, uint8_t type) {
                 }
             }
         }
-        Serial.print("Failed to find this tag's type in the FW pack database.\n");
+        TERMINAL.print("Failed to find this tag's type in the FW pack database.\n");
     } else {
-        Serial.print("Failed to read json header from FW pack\n");
+        TERMINAL.print("Failed to read json header from FW pack\n");
     }
     readfile.close();
     return false;
@@ -520,15 +525,15 @@ uint16_t getAPUpdateVersion(uint8_t type) {
                 if (jtype == type) {
                     const char *name = elem["name"];
                     uint32_t version = elem["version"];
-                    Serial.printf("AP FW version %04X - %s found in FW pack\n", version, name);
+                    TERMINAL.printf("AP FW version %04X - %s found in FW pack\n", version, name);
                     readfile.close();
                     return version;
                 }
             }
         }
-        Serial.print("Failed to find this tag's type in the AP FW pack database.\n");
+        TERMINAL.print("Failed to find this tag's type in the AP FW pack database.\n");
     } else {
-        Serial.print("Failed to read json header from FW pack\n");
+        TERMINAL.print("Failed to read json header from FW pack\n");
     }
     readfile.close();
     return 0;
@@ -570,7 +575,7 @@ bool doAPFlash() {
     // This function expects a tag in stock configuration, to be used as an AP. It can also work with 'dead' AP's.
     class flasher *f = new flasher();
     if (!f->connectTag(AP_PROCESS_PORT)) {
-        Serial.printf("Sorry, failed to connect to this tag...\n");
+        TERMINAL.printf("Sorry, failed to connect to this tag...\n");
         delete f;
         return false;
     }
@@ -579,7 +584,7 @@ bool doAPFlash() {
 
     if (f->findTagByMD5()) {
         // fresh tag for AP
-        Serial.printf("Found an original fw tag, flashing it for use with OpenEPaperLink\n");
+        TERMINAL.printf("Found an original fw tag, flashing it for use with OpenEPaperLink\n");
         f->readInfoBlock();
         f->getFirmwareMac();
         f->prepareInfoBlock();
@@ -590,7 +595,7 @@ bool doAPFlash() {
         // unknown tag, bailing out.
         f->backupFlash();
 
-        Serial.printf("Found a tag, but don't know what to do with it. Consider flashing using a file called \"AP_force_flash.bin\"\n");
+        TERMINAL.printf("Found a tag, but don't know what to do with it. Consider flashing using a file called \"AP_force_flash.bin\"\n");
         delete f;
         return false;
     }
@@ -604,7 +609,7 @@ bool doAPUpdate(uint8_t type) {
     // this function expects the tag to be already flashed with some version of the OpenEpaperLink Firmware, and that it correctly reported its type
     class flasher *f = new flasher();
     if (!f->connectTag(AP_PROCESS_PORT)) {
-        Serial.printf("Sorry, failed to connect to this tag...\n");
+        TERMINAL.printf("Sorry, failed to connect to this tag...\n");
         delete f;
         return false;
     }
@@ -635,10 +640,10 @@ bool doAPUpdate(uint8_t type) {
 }
 
 void flashCountDown(uint8_t c) {
-    Serial.printf("\r%d  ", c);
+    TERMINAL.printf("\r%d  ", c);
     for (c -= 1; c < 254; c--) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
-        Serial.printf("\r%d  ", c);
+        TERMINAL.printf("\r%d  ", c);
     }
 }
 
@@ -650,7 +655,7 @@ void pinTest() {
             pinMode(pintest[c], INPUT_PULLDOWN);
             vTaskDelay(10 / portTICK_PERIOD_MS);
             if (digitalRead(pintest[c])) {
-                Serial.printf("Pin %d failed to become low\n", c);
+                TERMINAL.printf("Pin %d failed to become low\n", c);
             } else {
                 pinMode(pintest[c], INPUT_PULLUP);
                 bool pinChange = false;
@@ -664,9 +669,9 @@ void pinTest() {
                     ets_delay_us(1);
                 }
                 if (pinChange) {
-                    Serial.printf("Pin %d went high in %d µS\n", pintest[c], pinTime);
+                    TERMINAL.printf("Pin %d went high in %d µS\n", pintest[c], pinTime);
                 } else {
-                    Serial.printf("Pin %d timeout becoming high\n", pintest[c]);
+                    TERMINAL.printf("Pin %d timeout becoming high\n", pintest[c]);
                 }
             }
         }
@@ -683,7 +688,7 @@ void pinTest() {
 bool doTagFlash() {
     class flasher *f = new flasher();
     if (!f->connectTag(FLASHER_EXT_PORT)) {
-        Serial.printf("Sorry, failed to connect to this tag...\n");
+        TERMINAL.printf("Sorry, failed to connect to this tag...\n");
         return false;
     }
 
@@ -691,7 +696,7 @@ bool doTagFlash() {
 
     if (f->findTagByMD5()) {
         // this tag currently contains original firmware, found its fingerprint
-        Serial.printf("Found original firmware tag, recognized its fingerprint (%s)\n", f->md5char);
+        TERMINAL.printf("Found original firmware tag, recognized its fingerprint (%s)\n", f->md5char);
         f->readInfoBlock();
         f->getFirmwareMac();
         f->prepareInfoBlock();
@@ -702,7 +707,7 @@ bool doTagFlash() {
         // did find an infoblock MD5 that looks valid
         if (f->findTagByMD5()) {
             // did find the md5 in the database
-            Serial.printf("Found an already-flashed tag, recognized its fingerprint (%s)\n", f->md5char);
+            TERMINAL.printf("Found an already-flashed tag, recognized its fingerprint (%s)\n", f->md5char);
             f->getInfoBlockMac();
             f->getInfoBlockType();
             f->readInfoBlock();
@@ -710,14 +715,14 @@ bool doTagFlash() {
             f->zbs->reset();
         } else {
             // couldn't find the md5 from the infoblock
-            Serial.printf("Found an already-flashed tag, but we couldn't find its fingerprint (%s) in the database\n", f->md5char);
+            TERMINAL.printf("Found an already-flashed tag, but we couldn't find its fingerprint (%s) in the database\n", f->md5char);
             return false;
         }
     } else {
         // We couldn't recognize the tag from it's fingerprint...
-        Serial.printf("Found a tag but didn't recognize its fingerprint\n", f->md5char);
+        TERMINAL.printf("Found a tag but didn't recognize its fingerprint\n", f->md5char);
         f->backupFlash();
-        Serial.printf("Saved this MD5 binary to filesystem\n");
+        TERMINAL.printf("Saved this MD5 binary to filesystem\n");
     }
     delete f;
     return false;
