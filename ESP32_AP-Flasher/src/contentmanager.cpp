@@ -47,6 +47,11 @@ void contentRunner() {
             config.runStatus == RUNSTATUS_RUN &&
             Storage.freeSpace() > 31000 && !util::isSleeping(config.sleepTime1, config.sleepTime2)) {
 
+            // temp debug info
+            char hexmac[17];
+            mac2hex(taginfo->mac, hexmac);
+            Serial.println("Drawnew " + String(hexmac));
+
             drawNew(taginfo->mac, taginfo);
             // taginfo->wakeupReason = 0;
         }
