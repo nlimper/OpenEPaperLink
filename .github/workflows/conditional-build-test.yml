@@ -23,42 +23,6 @@ jobs:
           token: ''
           filters: .github/path-filters.yml
 
-  tag-build:
-    name: Build Tag FW
-    needs: [determine-builds]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout Code (with submodules)
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-      - uses: ./.github/actions/setup-pio
-
-      - name: ARM_Tag_FW/nRF_Bootloader
-        if: ${{ needs.determine-builds.outputs.arm-tag_nrf-bootloader == 'true' }}
-        run: |
-          cd ARM_Tag_FW/nRF_Bootloader
-          pio run --environment nRFBootload
-
-      - name: ARM_Tag_FW/Newton_M3_nRF52811
-        if: ${{ needs.determine-builds.outputs.arm-tag_newton-m3-nrf52811 == 'true' }}
-        run: |
-          pio --version
-          cd ARM_Tag_FW/Newton_M3_nRF52811
-          pio run --environment Newton_M3_Universal
-
-      - name: ARM_Tag_FW/nrf52811_Platformio_AP
-        if: ${{ needs.determine-builds.outputs.arm-tag_nrf52811-pio-ap == 'true' }}
-        run: |
-          cd ARM_Tag_FW/nrf52811_Platformio_AP
-          pio run --environment nrf52811_OEPL_AP
-
-      - name: ARM_Tag_FW/88MZ100_OpenEpaperLink_7.4
-        if: ${{ needs.determine-builds.outputs.arm-tag_88MZ100 == 'true' }}
-        # TODO: Implement build for 88MZ100
-        run: |
-          echo "Note: build for 88MZ100 has not been implementted yet."
-
   ap-build:
     name: Build AP FW
     needs: [determine-builds]
