@@ -38,6 +38,7 @@ class tagRecord {
     uint8_t capabilities;
     uint32_t lastfullupdate;
     bool isExternal;
+    bool hidden = false;  // left out of the tag list, the websocket and the tag counts
     bool lastHeardOnRadio;  // last check-in came over the 802.15.4 / sub-GHz radio, see tagBleFamily()
     IPAddress apIp;
     uint16_t pendingIdle;
@@ -232,7 +233,13 @@ extern Config config;
 extern std::vector<tagRecord*> tagDB;
 extern std::unordered_map<int, HwType> hwtype;
 extern std::unordered_map<std::string, varStruct> varDB;
-extern String tagDBtoJson(const uint8_t mac[8] = nullptr, uint8_t startPos = 0);
+enum TagListFilter : uint8_t {
+    TAGS_VISIBLE,  // tags that are not hidden
+    TAGS_HIDDEN,   // hidden tags only
+    TAGS_ALL
+};
+extern String tagDBtoJson(const uint8_t mac[8] = nullptr, uint8_t startPos = 0, TagListFilter filter = TAGS_VISIBLE);
+extern uint32_t hiddenTagCount();
 extern bool deleteRecord(const uint8_t mac[8], bool allVersions = true);
 extern void fillNode(JsonObject& tag, const tagRecord* taginfo);
 extern void saveDB(const String& filename);

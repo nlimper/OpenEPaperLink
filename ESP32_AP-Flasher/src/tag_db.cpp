@@ -138,7 +138,7 @@ bool hex2mac(const String& hexString, uint8_t* mac) {
     }
 }
 
-String tagDBtoJson(const uint8_t mac[8], uint8_t startPos) {
+String tagDBtoJson(const uint8_t mac[8], uint8_t startPos, TagListFilter filter) {
     JsonDocument doc;
     JsonArray tags = doc["tags"].to<JsonArray>();
 
@@ -146,7 +146,8 @@ String tagDBtoJson(const uint8_t mac[8], uint8_t startPos) {
     for (uint32_t c = startPos; c < tagDB.size(); ++c) {
         const tagRecord* taginfo = tagDB.at(c);
 
-        const bool select = !mac || memcmp(taginfo->mac, mac, 8) == 0;
+        const bool select = (!mac || memcmp(taginfo->mac, mac, 8) == 0) &&
+                            (filter == TAGS_ALL || taginfo->hidden == (filter == TAGS_HIDDEN));
         if (select && taginfo->version == 0) {
             JsonObject tag = tags.add<JsonObject>();
             fillNode(tag, taginfo);
@@ -190,6 +191,7 @@ void fillNode(JsonObject& tag, const tagRecord* taginfo) {
     tag["capabilities"] = taginfo->capabilities;
     tag["modecfgjson"] = taginfo->modeConfigJson;
     tag["isexternal"] = taginfo->isExternal;
+    if (taginfo->hidden) tag["hidden"] = true;
     tag["apip"] = taginfo->apIp.toString();
     tag["rotate"] = taginfo->rotate;
     tag["lut"] = taginfo->lut;
@@ -295,6 +297,7 @@ bool loadDB(const String& filename) {
                     taginfo->capabilities = tag["capabilities"];
                     taginfo->modeConfigJson = tag["modecfgjson"].as<String>();
                     taginfo->isExternal = tag["isexternal"].as<bool>();
+                    taginfo->hidden = tag["hidden"] | false;
                     taginfo->apIp.fromString(tag["apip"].as<String>());
                     taginfo->rotate = tag["rotate"] | 0;
                     taginfo->lut = tag["lut"] | 0;
@@ -348,6 +351,7 @@ uint32_t getTagCount(uint32_t& timeoutcount, uint32_t& lowbattcount) {
     time(&now);
     TagDBLock lock;
     for (const tagRecord* taginfo : tagDB) {
+        if (taginfo->hidden) continue;
         if (!taginfo->isExternal) tagcount++;
         const int32_t timeout = now - taginfo->lastseen;
         if (taginfo->expectedNextCheckin < 3600) {
@@ -360,6 +364,15 @@ uint32_t getTagCount(uint32_t& timeoutcount, uint32_t& lowbattcount) {
         if (taginfo->batteryMv < 2400 && taginfo->batteryMv != 0 && taginfo->batteryMv != 1337) lowbattcount++;
     }
     return tagcount;
+}
+
+uint32_t hiddenTagCount() {
+    uint32_t count = 0;
+    TagDBLock lock;
+    for (const tagRecord* taginfo : tagDB) {
+        if (taginfo->hidden && taginfo->version == 0) count++;
+    }
+    return count;
 }
 
 void clearPending(tagRecord* taginfo) {

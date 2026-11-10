@@ -135,6 +135,8 @@ body.dark-mode {
 .tagcard.state-reset { background-color: var(--color-tag-reset-bg); }
 .tagcard.state-failed-ota { background-color: var(--color-tag-failed-ota-bg); }
 .tagcard.state-timeout { background-color: var(--color-tag-timeout-bg); }
+.tagcard.tag-hidden { border-style: dashed; }
+#dbServing a { cursor: pointer; text-decoration: underline; }
 
 
 * {

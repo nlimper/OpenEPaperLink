@@ -200,13 +200,14 @@ function initTabs() {
 	}
 };
 
-function loadTags(pos) {
-	return fetch("get_db?pos=" + pos)
+// hidden: load the hidden tags instead of the others
+function loadTags(pos, hidden = false) {
+	return fetch("get_db?pos=" + pos + (hidden ? "&hidden=1" : ""))
 		.then(response => response.json())
 		.then(data => {
 			processTags(data.tags);
 			if (data.continu && data.continu > pos) {
-				return loadTags(data.continu);
+				return loadTags(data.continu, hidden);
 			}
 		});
 }
@@ -486,6 +487,8 @@ function processTags(tagArray) {
 		div.dataset.nextupdate = element.nextupdate;
 		div.dataset.channel = element.ch;
 		div.dataset.isexternal = element.isexternal;
+		div.dataset.hidden = !!element.hidden;
+		div.classList.toggle('tag-hidden', !!element.hidden);
 		$('#tag' + tagmac + ' .warningicon').style.display = 'none';
 		
 		div.style.background = '';
@@ -567,8 +570,9 @@ function updatecards() {
 
 	$('#taglist').querySelectorAll('[data-mac]').forEach(item => {
 		let tagmac = item.dataset.mac;
-		tagcount++;
-		if (tagDB[tagmac].batteryMv < 2400 && tagDB[tagmac].batteryMv != 0 && tagDB[tagmac].batteryMv != 1337) lowbattcount++;
+		const counted = !tagDB[tagmac].hidden;
+		if (counted) tagcount++;
+		if (counted && tagDB[tagmac].batteryMv < 2400 && tagDB[tagmac].batteryMv != 0 && tagDB[tagmac].batteryMv != 1337) lowbattcount++;
 		if (item.dataset.lastseen && item.dataset.lastseen > (Date.now() / 1000) - servertimediff - 30 * 24 * 3600 * 60) {
 			let idletime = (Date.now() / 1000) - servertimediff - item.dataset.lastseen;
 			$('#tag' + tagmac + ' .lastseen').innerHTML = "<span>last seen</span>" + displayTime(Math.floor(idletime)) + " ago";	
@@ -576,10 +580,10 @@ function updatecards() {
 				item.querySelector('.warningicon').style.display = 'inline-block';
 				item.classList.remove("tagpending");
 				item.classList.add('state-timeout');
-				timeoutcount++;
+				if (counted) timeoutcount++;
 			} else {
 				item.classList.remove('state-timeout');
-				if (tagDB[tagmac].pending) pendingcount++;
+				if (counted && tagDB[tagmac].pending) pendingcount++;
 			}
 			
 			const lastseenEl = item.querySelector('.lastseen');
@@ -790,12 +794,17 @@ $('#cfgsave').onclick = function () {
 	formData.append("lut", $('#cfglut').value);
 	formData.append("invert", $('#cfginvert').value);
 
+	const mac = $('#cfgmac').dataset.mac;
 	fetch("save_cfg", {
 		method: "POST",
 		body: formData
 	})
 		.then(response => response.text())
-		.then(data => showMessage(data))
+		.then(data => {
+			showMessage(data);
+			// the websocket sends no update for a hidden tag
+			if (tagDB[mac]?.hidden) return fetch("get_db?mac=" + mac).then(response => response.json()).then(data => processTags(data.tags));
+		})
 		.catch(error => showMessage('Error: ' + error, true));
 
 	$('#advancedoptions').style.height = '0px';
@@ -815,6 +824,13 @@ function sendCmd(mac, cmd) {
 		.then(data => {
 			let div = $('#tag' + mac);
 			if (cmd == "del") div.remove();
+			if (cmd == "hide" || cmd == "unhide") {
+				const hidden = (cmd == "hide");
+				if (tagDB[mac]) tagDB[mac].hidden = hidden;
+				div.dataset.hidden = hidden;
+				div.classList.toggle('tag-hidden', hidden);
+				GroupSortFilter();
+			}
 			showMessage(data);
 		})
 		.catch(error => showMessage('Error: ' + error, true));
@@ -1517,6 +1533,7 @@ $("#filterOptions").addEventListener("click", function (event) {
 });
 
 let filtersRestored = false;
+let hiddenTagsLoaded = false;
 
 function GroupSortFilter() {
 	const sortableGrid = $('#taglist');
@@ -1530,6 +1547,14 @@ function GroupSortFilter() {
 	} else {
 		localStorage.setItem("filters", JSON.stringify(filterBoxes.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value)));
 	}
+
+	// the AP leaves hidden tags out of the list and the websocket: fetch them each time the filter is switched on
+	const showHidden = $('input[name="filter"][value="hidden"]').checked;
+	if (showHidden && !hiddenTagsLoaded) {
+		hiddenTagsLoaded = true;
+		loadTags(0, true).catch(error => showMessage('Error: ' + error, true));
+	}
+	if (!showHidden) hiddenTagsLoaded = false;
 
 	let grouping = document.querySelector('input[name="group"]:checked')?.value;
 	if (grouping == undefined) {
@@ -1567,6 +1592,7 @@ function GroupSortFilter() {
 		if ($('input[name="filter"][value="pending"]').checked && !item.classList.contains("tagpending")) show = false;
 		if ($('input[name="filter"][value="lowbatt"]').checked && (batteryMv >= 2400 || batteryMv == 0 || batteryMv == 1337)) show = false;
 		if ($('input[name="filter"][value="favorites"]').checked && !favorites.has(item.dataset.mac)) show = false;
+		if ((item.dataset.hidden == "true") != showHidden) show = false;
 		visible.set(item, show);
 	});
 
@@ -1954,6 +1980,7 @@ $('#taglist').addEventListener('contextmenu', (e) => {
 		}
 		contextMenuOptions.push(
 			{ id: 'favorite', label: favorites.has(mac) ? 'Remove from favorites' : 'Add to favorites' },
+			clickedGridItem.dataset.hidden == "true" ? { id: 'unhide', label: 'Unhide tag' } : { id: 'hide', label: 'Hide tag' },
 			{ id: 'del', label: 'Delete tag from list' }
 		);
 		let idletime = (Date.now() / 1000) - servertimediff - clickedGridItem.dataset.lastseen;
@@ -2094,6 +2121,7 @@ function setFilterAndShow(filter) {
 	$('input[name="filter"][value="pending"]').checked = (filter == 'pending');
 	$('input[name="filter"][value="lowbatt"]').checked = (filter == 'lowbatt');
 	$('input[name="filter"][value="favorites"]').checked = false;
+	$('input[name="filter"][value="hidden"]').checked = (filter == 'hidden');
 	GroupSortFilter();
 	$(`[data-target='tagtab']`).click();
 }
@@ -2230,7 +2258,7 @@ function renderDashboard() {
 
 	$('#taglist').querySelectorAll('[data-mac]').forEach(item => {
 		const mac = item.dataset.mac, tag = tagDB[mac];
-		if (!tag) return;
+		if (!tag || tag.hidden) return;
 		const name = item.querySelector('.alias')?.textContent || mac;
 		if (tag.isexternal) external++; else local++;
 		if (tag.updatelast > now - 3600) updated++;
@@ -2266,7 +2294,8 @@ function renderDashboard() {
 
 	// status
 	dbSet('dbAlias', dbEsc(apConfig.alias || 'OpenEPaperLink AP'));
-	dbSet('dbServing', `&middot; ${local} tag${local == 1 ? '' : 's'}`);
+	const hiddenCount = lastSys.hiddencount || 0;
+	dbSet('dbServing', `&middot; ${local} tag${local == 1 ? '' : 's'}` + (hiddenCount ? ` &middot; <a onclick="setFilterAndShow('hidden')">${hiddenCount} hidden</a>` : ''));
 	if (sysInfo.env) {
 		const radioFw = sysInfo.ap_version ? ' &middot; fw ' + Number(sysInfo.ap_version).toString(16).toUpperCase().padStart(4, '0') : '';
 		const channel = sysInfo.channel || apConfig.channel;

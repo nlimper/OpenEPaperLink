@@ -130,9 +130,12 @@ void wsSendSysteminfo() {
     sys["heap"] = ESP.getFreeHeap();
     sys["recordcount"] = tagDBsize;
     sys["dbsize"] = dbSize();
+    const uint32_t hiddencount = hiddenTagCount();
+    sys["hiddencount"] = hiddencount;
 
     if (millis() - tagDBsizeLastRun > 30000 || tagDBsizeLastRun == 0) {
-        tagDBsize = tagDB.size();
+        // without the hidden tags: a client that sees this drop reloads the tag list
+        tagDBsize = tagDB.size() - hiddencount;
         tagDBsizeLastRun = millis();
     }
     // measuring walks the whole file system: report the last measurement, minus what was reserved since
@@ -207,10 +210,11 @@ void wsSendSysteminfo() {
         sys["lowbattcount"] = lowbattcount;
         sys["timeoutcount"] = timeoutcount;
         char result[40];
+        const uint32_t total = tagDB.size() - hiddencount;
         if (timeoutcount > 0) {
-            snprintf(result, sizeof(result), "%lu/%lu, %lu timeout", tagcount, tagDB.size(), timeoutcount);
+            snprintf(result, sizeof(result), "%lu/%lu, %lu timeout", tagcount, total, timeoutcount);
         } else {
-            snprintf(result, sizeof(result), "%lu / %lu", tagcount, tagDB.size());
+            snprintf(result, sizeof(result), "%lu / %lu", tagcount, total);
         }
         setVarDB("ap_tagcount", result);
 #ifdef HAS_RGB_LED
@@ -229,7 +233,8 @@ void wsSendSysteminfo() {
 }
 
 void wsSendTaginfo(const uint8_t *mac, uint8_t syncMode) {
-    if (syncMode != SYNC_DELETE) {
+    const tagRecord *shown = tagRecord::findByMAC(mac);
+    if (syncMode != SYNC_DELETE && (shown == nullptr || !shown->hidden)) {
         String json = "";
         json = tagDBtoJson(mac);
         xSemaphoreTake(wsMutex, portMAX_DELAY);
@@ -341,7 +346,7 @@ void init_web() {
             String dst = request->getParam("mac")->value();
             uint8_t mac[8];
             if (hex2mac(dst, mac)) {
-                json = tagDBtoJson(mac);
+                json = tagDBtoJson(mac, 0, TAGS_ALL);
             } else {
                 json = "{\"error\": \"malformatted parameter\"}";
             }
@@ -350,7 +355,9 @@ void init_web() {
             if (request->hasParam("pos")) {
                 startPos = atoi(request->getParam("pos")->value().c_str());
             }
-            json = tagDBtoJson(nullptr, startPos);
+            // ?hidden=1 lists the hidden tags instead of the others
+            const bool hidden = request->hasParam("hidden") && request->getParam("hidden")->value() == "1";
+            json = tagDBtoJson(nullptr, startPos, hidden ? TAGS_HIDDEN : TAGS_VISIBLE);
         }
         request->send(200, "application/json", json);
     });
@@ -504,11 +511,19 @@ void init_web() {
                         time_t now;
                         time(&now);
                         for (tagRecord *tag : tagDBSnapshot()) {
+                            if (tag->hidden) continue;  // not in the list the user is purging
                             if (tag->expectedNextCheckin == 3216153600 || tag->lastseen < now - 24 * 3600 || now > tag->expectedNextCheckin + 600) {
                                 wsSendTaginfo(tag->mac, SYNC_DELETE);
                                 deleteRecord(tag->mac);
                             }
                         }
+                    }
+                    if (strcmp(cmdValue, "hide") == 0) {
+                        taginfo->hidden = true;
+                    }
+                    if (strcmp(cmdValue, "unhide") == 0) {
+                        taginfo->hidden = false;
+                        wsSendTaginfo(mac, SYNC_NOSYNC);
                     }
                     if (strcmp(cmdValue, "clear") == 0) {
                         // also clears what the radio holds for the tag, or it would still deliver that
