@@ -58,46 +58,46 @@ class tagRecord {
     static tagRecord* findByMAC(const uint8_t mac[8]);
 };
 
-/* The build time pinout, used as the default for the flash-only pin settings.
-   A board that does not have a given pin says -1, which every consumer already
-   treats as "not present". Keeping the fallbacks here rather than at each use
-   means an unset config entry and an old config file both behave exactly like
-   the build did. */
-#ifdef FLASHER_AP_SWS
-#define FLASH_DEF_SWS FLASHER_AP_SWS
-#else
-#define FLASH_DEF_SWS (-1)
-#endif
-#ifdef FLASHER_AP_RESET
-#define FLASH_DEF_RESET FLASHER_AP_RESET
-#else
-#define FLASH_DEF_RESET (-1)
-#endif
-#ifdef FLASHER_AP_TXD
-#define FLASH_DEF_TXD FLASHER_AP_TXD
-#else
-#define FLASH_DEF_TXD (-1)
-#endif
-#ifdef FLASHER_AP_RXD
-#define FLASH_DEF_RXD FLASHER_AP_RXD
-#else
-#define FLASH_DEF_RXD (-1)
-#endif
-#ifdef FLASHER_DEBUG_PROG
-#define FLASH_DEF_PROG FLASHER_DEBUG_PROG
-#else
-#define FLASH_DEF_PROG (-1)
-#endif
-#ifdef FLASHER_DEBUG_TXD
-#define FLASH_DEF_DBGTXD FLASHER_DEBUG_TXD
-#else
-#define FLASH_DEF_DBGTXD (-1)
-#endif
-#ifdef FLASHER_DEBUG_RXD
-#define FLASH_DEF_DBGRXD FLASHER_DEBUG_RXD
-#else
-#define FLASH_DEF_DBGRXD (-1)
-#endif
+/* The build time pinout, used as the default for the flash-only pin settings.
+   A board that does not have a given pin says -1, which every consumer already
+   treats as "not present". Keeping the fallbacks here rather than at each use
+   means an unset config entry and an old config file both behave exactly like
+   the build did. */
+#ifdef FLASHER_AP_SWS
+#define FLASH_DEF_SWS FLASHER_AP_SWS
+#else
+#define FLASH_DEF_SWS (-1)
+#endif
+#ifdef FLASHER_AP_RESET
+#define FLASH_DEF_RESET FLASHER_AP_RESET
+#else
+#define FLASH_DEF_RESET (-1)
+#endif
+#ifdef FLASHER_AP_TXD
+#define FLASH_DEF_TXD FLASHER_AP_TXD
+#else
+#define FLASH_DEF_TXD (-1)
+#endif
+#ifdef FLASHER_AP_RXD
+#define FLASH_DEF_RXD FLASHER_AP_RXD
+#else
+#define FLASH_DEF_RXD (-1)
+#endif
+#ifdef FLASHER_DEBUG_PROG
+#define FLASH_DEF_PROG FLASHER_DEBUG_PROG
+#else
+#define FLASH_DEF_PROG (-1)
+#endif
+#ifdef FLASHER_DEBUG_TXD
+#define FLASH_DEF_DBGTXD FLASHER_DEBUG_TXD
+#else
+#define FLASH_DEF_DBGTXD (-1)
+#endif
+#ifdef FLASHER_DEBUG_RXD
+#define FLASH_DEF_DBGRXD FLASHER_DEBUG_RXD
+#else
+#define FLASH_DEF_DBGRXD (-1)
+#endif
 
 struct Config {
     uint8_t channel;
